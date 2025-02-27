@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use anyhow::Result;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
-use sui_field_count::FieldCount;
+use sui_indexer_alt_framework::db;
 use sui_indexer_alt_framework::pipeline::{concurrent::Handler, Processor};
-use sui_pg_db as db;
-use sui_types::full_checkpoint_content::CheckpointData;
+use sui_indexer_alt_framework::types::full_checkpoint_content::CheckpointData;
+use sui_indexer_alt_framework::FieldCount;
+use sui_indexer_alt_framework::Result;
 
 use crate::schema::senders;
 
