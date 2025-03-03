@@ -4,10 +4,7 @@ use sui_indexer_alt_framework::{
     pipeline::concurrent::ConcurrentConfig,
     Result,
 };
-use sui_indexer_alt_metrics::{MetricsArgs, MetricsService};
-use sui_pg_db::DbArgs;
 use sui_sender_indexer::{SenderPipeline, MIGRATIONS};
-use tokio_util::sync::CancellationToken;
 use url::Url;
 
 #[derive(clap::Parser, Debug)]
