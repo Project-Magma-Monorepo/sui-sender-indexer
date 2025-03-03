@@ -8,7 +8,7 @@ use sui_indexer_alt_framework::{
 };
 use sui_indexer_alt_metrics::{MetricsArgs, MetricsService};
 use sui_pg_db::DbArgs;
-use sui_sender_index::{SenderPipeline, MIGRATIONS};
+use sui_sender_indexer::{SenderPipeline, MIGRATIONS};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
@@ -16,7 +16,7 @@ use url::Url;
 struct Args {
     #[clap(
         long,
-        default_value = "postgres://postgres:postgrespw@localhost:5432/sui_sender"
+        default_value = "postgres://postgres:sui-indexer@localhost:5432/sui_sender"
     )]
     database_url: Url,
 
