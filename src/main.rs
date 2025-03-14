@@ -4,7 +4,7 @@ use sui_indexer_alt_framework::{
     pipeline::concurrent::ConcurrentConfig,
     Result,
 };
-use sui_sender_indexer::{SenderPipeline, MIGRATIONS};
+use sui_sender_indexer::{SenderPipeline, BlobPipeline, MIGRATIONS};
 use url::Url;
 
 #[derive(clap::Parser, Debug)]
@@ -26,8 +26,11 @@ async fn main() -> Result<()> {
     let mut indexer =
         IndexerCluster::new(args.database_url, args.cluster_args, Some(&MIGRATIONS)).await?;
 
+
+    //indexer.concurrent_pipeline(SenderPipeline, ConcurrentConfig::default()).await?;
+        
     indexer
-        .concurrent_pipeline(SenderPipeline, ConcurrentConfig::default())
+        .concurrent_pipeline(BlobPipeline, ConcurrentConfig::default())
         .await?;
 
     let _ = indexer.run().await?.await;
