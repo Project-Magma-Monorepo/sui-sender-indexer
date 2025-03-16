@@ -14,3 +14,4 @@ url = "2.3.1"
 serde_json = "1.0"
 
 sui-indexer-alt-framework = { git = "https://github.com/MystenLabs/sui.git", rev = "76ea0f37cde3ff6656edb933edde02a53bd00999" }
+sui-types = { git = "https://github.com/MystenLabs/sui.git", rev = "76ea0f37cde3ff6656edb933edde02a53bd00999" }

@@ -1,23 +1,24 @@
 services:
-  postgres:
-    image: postgres:15
-    container_name: sui-indexer-postgres
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: sui-indexer
-      POSTGRES_DB: sui_sender
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - internal-network
+  # Postgre Service Not needed here as we are using the supabase postgre Database
+  # postgres:
+  #   image: postgres:15
+  #   container_name: sui-indexer-postgres
+  #   restart: always
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: sui-indexer
+  #     POSTGRES_DB: sui_sender
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     
 
   indexer:
     build:
@@ -26,17 +27,12 @@ services:
     container_name: sui-sender-indexer
     restart: on-failure
     environment:
-      - DATABASE_URL=postgres://postgres:sui-indexer@postgres:5432/sui_sender
-      - REMOTE_STORE_URL=https://checkpoints.testnet.sui.io
+      - DATABASE_URL=postgres://supabase_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/sui_sender
+      - REMOTE_STORE_URL=${REMOTE_STORE_URL}
       - RUST_LOG=info
-    depends_on:
-      - postgres
-    networks:
-      - internal-network
+    # No dependencies as we are running Supabase
+    # depends_on:
+    #   - postgres
 
 volumes:
   postgres-data:
-
-networks:
-  internal-network:
-    external: true
