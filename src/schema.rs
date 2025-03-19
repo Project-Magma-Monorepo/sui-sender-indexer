@@ -1,4 +1,8 @@
-// @generated automatically by Diesel CLI.
+diesel::table! {
+    blob_ids (id) {
+        id -> Bytea,
+    }
+}
 
 diesel::table! {
     blobs (id) {
@@ -21,8 +25,3 @@ diesel::table! {
         sender -> Bytea,
     }
 }
-
-diesel::allow_tables_to_appear_in_same_query!(
-    blobs,
-    senders,
-);

@@ -27,9 +27,10 @@ services:
     container_name: sui-sender-indexer
     restart: on-failure
     environment:
-      - DATABASE_URL=postgres://supabase_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/sui_sender
+      - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/postgres?options=--search_path%3Dsui_indexer
       - REMOTE_STORE_URL=${REMOTE_STORE_URL}
       - RUST_LOG=info
+      - START_CHECKPOINT=${START_CHECKPOINT}
     # No dependencies as we are running Supabase
     # depends_on:
     #   - postgres

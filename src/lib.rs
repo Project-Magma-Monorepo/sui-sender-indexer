@@ -1,10 +1,9 @@
 use std::sync::Arc;
-use std::str::FromStr;
+
 
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
-use serde_json::Value;
 use sui_indexer_alt_framework::db;
 use sui_indexer_alt_framework::pipeline::{concurrent::Handler, Processor};
 use sui_indexer_alt_framework::types::full_checkpoint_content::CheckpointData;
@@ -13,14 +12,20 @@ use sui_indexer_alt_framework::Result;
 use sui_types::base_types::ObjectID;
 use sui_types::object::Object;
 
-use crate::schema::{blobs, senders};
 
-mod schema;
+use serde::{Deserialize, Serialize};
+
+
+
+use crate::schema::{blobs, senders, blob_ids};
+
+pub mod schema;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 // The Blob module ID
-const BLOB_MODULE_ID: &str = "0x795ddbc26b8cfff2551f45e198b87fc19473f2df50f995376b924ac80e56f88b::blob::Blob";
+const BLOB_MODULE_ADDRESS: &str = "0x795ddbc26b8cfff2551f45e198b87fc19473f2df50f995376b924ac80e56f88b";
+// const BLOB_TYPE: &str =  "0x11f5d87dab9494ce459299c7874e959ff121649fd2d4529965f6dea85c153d2d::blob::Blob";
 
 #[derive(Insertable, Debug, FieldCount)]
 #[diesel(table_name = senders)]
@@ -31,17 +36,17 @@ pub struct StoredSender {
 #[derive(Insertable, Debug, FieldCount)]
 #[diesel(table_name = blobs)]
 pub struct StoredBlob {
-    id: Vec<u8>,
-    blob_id: String,
-    registered_epoch: i64,
-    certified_epoch: Option<i64>,
-    deletable: bool,
-    encoding_type: i32,
-    size: String,
-    storage_id: Vec<u8>,
-    storage_start_epoch: i64,
-    storage_end_epoch: i64,
-    storage_size: String,
+    pub id: Vec<u8>,
+    pub blob_id: String,
+    pub registered_epoch: i64,
+    pub certified_epoch: Option<i64>,
+    pub deletable: bool,
+    pub encoding_type: i32,
+    pub size: String,
+    pub storage_id: Vec<u8>,
+    pub storage_start_epoch: i64,
+    pub storage_end_epoch: i64,
+    pub storage_size: String,
 }
 
 pub struct SenderPipeline;
@@ -82,21 +87,13 @@ impl Processor for BlobPipeline {
     type Value = StoredBlob;
 
     fn process(&self, checkpoint: &Arc<CheckpointData>) -> Result<Vec<Self::Value>> {
-        let mut blobs = Vec::new();
-
-        // Iterate through all transactions in the checkpoint
-        for tx in &checkpoint.transactions {
-            // Check all output objects for Blob type
-            for obj in &tx.output_objects {
-                if is_blob_object(obj) {
-                    if let Some(blob) = extract_blob_data(obj) {
-                        blobs.push(blob);
-                    }
-                }
-            }
-        }
-
-        Ok(blobs)
+        // Use streaming operations instead of for loops
+        Ok(checkpoint
+            .transactions
+            .iter()
+            .flat_map(|tx| tx.output_objects.iter())
+            .filter_map(|obj| extract_blob_data(obj))
+            .collect())
     }
 }
 
@@ -126,69 +123,129 @@ impl Handler for BlobPipeline {
 }
 
 // Helper function to check if an object is a Blob
-fn is_blob_object(obj: &Object) -> bool {
-    if let Some(type_str) = obj.type_().map(|t| t.to_string()) {
-        type_str == BLOB_MODULE_ID
-    } else {
-        false
+pub fn is_blob_object(obj: &Object) -> bool {
+    if let Some(move_object_type) = obj.data.type_() {
+        // Sui blobs are in the storage module, with struct name Blob
+        let is_blob = move_object_type.module().as_str() == "blob" && 
+                      move_object_type.name().as_str() == "Blob";
+        
+        if is_blob {
+            println!("Found Blob with ID: {}, {:?}", obj.id(), obj.data);
+            return true;
+        }
+        return false;
     }
+    false
 }
 
 // Helper function to extract Blob data from an object
-fn extract_blob_data(obj: &Object) -> Option<StoredBlob> {
-    // Convert the object to JSON for easier field access
-    let json_obj = serde_json::to_value(obj).ok()?;
+pub fn extract_blob_data(obj: &Object) -> Option<StoredBlob> {
+    println!("Checking if object is a Blob");
+
+    if !is_blob_object(obj) {
+        return None;
+    }
+
+    // Get the Move object
+    let move_obj = obj.data.try_as_move()?;
+    println!("Attempting to deserialize blob object with ID: {}", obj.id());
+    println!("Content length: {} bytes", move_obj.contents().len());
     
-    // Access the content field which contains the Move object data
-    let content = json_obj.get("content")?.get("fields")?;
+    // Define structs for BCS deserialization
+    #[derive(Deserialize)]
+    struct BlobData {
+        id: ObjectID, // Every Move object has an ID field
+        blob_id: String,
+        registered_epoch: u64,
+        certified_epoch: Option<u64>,
+        deletable: bool,
+        encoding_type: u64,
+        size: String,
+        storage: StorageData,
+    }
+
+    #[derive(Deserialize)]
+    struct StorageData {
+        id: StorageID,
+        start_epoch: u64,
+        end_epoch: u64,
+        storage_size: String,
+    }
+
+    #[derive(Deserialize)]
+    struct StorageID {
+        id: ObjectID,
+    }
     
-    // Extract blob_id
-    let blob_id = content.get("blob_id")?.as_str()?.to_string();
+    // Try to deserialize with error handling
+    let result = bcs::from_bytes::<BlobData>(move_obj.contents());
     
-    // Extract registered_epoch
-    let registered_epoch = content.get("registered_epoch")?.as_u64()? as i64;
-    
-    // Extract certified_epoch (optional)
-    let certified_epoch = if content.get("certified_epoch")?.is_null() {
-        None
-    } else {
-        Some(content.get("certified_epoch")?.as_u64()? as i64)
-    };
-    
-    // Extract deletable
-    let deletable = content.get("deletable")?.as_bool()?;
-    
-    // Extract encoding_type
-    let encoding_type = content.get("encoding_type")?.as_u64()? as i32;
-    
-    // Extract size
-    let size = content.get("size")?.as_str()?.to_string();
-    
-    // Extract storage fields
-    let storage = content.get("storage")?.get("fields")?;
-    
-    // Extract storage ID
-    let storage_id_str = storage.get("id")?.get("fields")?.get("id")?.as_str()?;
-    let storage_id = ObjectID::from_str(storage_id_str).ok()?.to_vec();
-    
-    // Extract storage epochs
-    let start_epoch = storage.get("start_epoch")?.as_u64()? as i64;
-    let end_epoch = storage.get("end_epoch")?.as_u64()? as i64;
-    
-    // Extract storage size
-    let storage_size = storage.get("storage_size")?.as_str()?.to_string();
-    
-    Some(StoredBlob {
-        id: obj.id().to_vec(),
-        blob_id,
-        registered_epoch,
-        certified_epoch,
-        deletable,
-        encoding_type,
-        size,
-        storage_id,
-        storage_start_epoch: start_epoch,
-        storage_end_epoch: end_epoch,
-        storage_size,
-    })
+    match result {
+        Ok(blob_data) => {
+            println!("Successfully deserialized blob with blob_id: {}", blob_data.blob_id);
+            
+            Some(StoredBlob {
+                id: obj.id().to_vec(),
+                blob_id: blob_data.blob_id,
+                registered_epoch: blob_data.registered_epoch as i64,
+                certified_epoch: blob_data.certified_epoch.map(|e| e as i64),
+                deletable: blob_data.deletable,
+                encoding_type: blob_data.encoding_type as i32,
+                size: blob_data.size,
+                storage_id: blob_data.storage.id.id.to_vec(),
+                storage_start_epoch: blob_data.storage.start_epoch as i64,
+                storage_end_epoch: blob_data.storage.end_epoch as i64,
+                storage_size: blob_data.storage.storage_size,
+            })
+        },
+        Err(e) => {
+            println!("Failed to deserialize blob: {}", e);
+            None
+        }
+    }
+}
+
+// Simple struct to hold just blob ID information
+#[derive(Insertable, Debug, FieldCount)]
+#[diesel(table_name = blob_ids)]
+pub struct StoredBlobId {
+    pub id: Vec<u8>,
+}
+
+pub struct BlobIdPipeline;
+
+impl Processor for BlobIdPipeline {
+    const NAME: &'static str = "blob_ids";
+
+    type Value = StoredBlobId;
+
+    fn process(&self, checkpoint: &Arc<CheckpointData>) -> Result<Vec<Self::Value>> {
+        let blobs = checkpoint
+            .transactions
+            .iter()
+            .flat_map(|tx| tx.output_objects.iter())
+            .filter(|obj| is_blob_object(obj))
+            .map(|obj| {
+                println!("Found blob with object ID: {}", obj.id());
+                StoredBlobId {
+                    id: obj.id().to_vec(),
+                }
+            })
+            .collect();
+        
+        Ok(blobs)
+    }
+}
+
+#[async_trait::async_trait]
+impl Handler for BlobIdPipeline {
+    async fn commit(values: &[Self::Value], conn: &mut db::Connection<'_>) -> Result<usize> {
+        // Only insert the minimal IDs to the database
+        diesel::insert_into(blob_ids::table)
+            .values(values)
+            .on_conflict_do_nothing()
+            .execute(conn)
+            .await
+            .map_err(Into::into)
+    }
 }

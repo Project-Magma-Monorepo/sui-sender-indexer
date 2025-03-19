@@ -45,7 +45,7 @@ echo "Running migrations..."\n\
 diesel setup --database-url="$DATABASE_URL" --migration-dir migrations\n\
 diesel migration run --database-url="$DATABASE_URL" --migration-dir migrations\n\
 echo "Starting indexer..."\n\
-exec /app/sui-sender-indexer --remote-store-url "$REMOTE_STORE_URL" --database-url "$DATABASE_URL"\n\
+exec /app/sui-sender-indexer --remote-store-url "$REMOTE_STORE_URL" --database-url "$DATABASE_URL" --first-checkpoint "$START_CHECKPOINT" --skip-watermark\n\
 ' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]
