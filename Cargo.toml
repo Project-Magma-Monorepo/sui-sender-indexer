@@ -9,7 +9,7 @@ clap = { version = "4.4", features = ["derive"] }
 diesel = "2.2"
 diesel_migrations = "2.2"
 diesel-async = "0.5"
-tokio = "1.36.0"
+tokio = "1.43.0"
 url = "2.3.1"
 
-sui-indexer-alt-framework = { git = "https://github.com/MystenLabs/sui.git", rev = "76ea0f37cde3ff6656edb933edde02a53bd00999" }
+sui-indexer-alt-framework = { git = "https://github.com/MystenLabs/sui.git", branch = "testnet" }
