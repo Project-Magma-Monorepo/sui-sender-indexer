@@ -5,7 +5,7 @@ use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 use sui_indexer_alt_framework::db;
-use sui_indexer_alt_framework::pipeline::{concurrent::Handler, Processor};
+use sui_indexer_alt_framework::pipeline::{concurrent::Handler as ConcurrentHandler, sequential::Handler as SequentialHandler, Processor};
 use sui_indexer_alt_framework::types::full_checkpoint_content::CheckpointData;
 use sui_indexer_alt_framework::FieldCount;
 use sui_indexer_alt_framework::Result;
@@ -95,7 +95,7 @@ impl Processor for SenderPipeline {
 }
 
 #[async_trait::async_trait]
-impl Handler for SenderPipeline {
+impl ConcurrentHandler for SenderPipeline {
     async fn commit(values: &[Self::Value], conn: &mut db::Connection<'_>) -> Result<usize> {
         diesel::insert_into(senders::table)
             .values(values)
@@ -124,8 +124,9 @@ impl Processor for BlobPipeline {
     }
 }
 
+
 #[async_trait::async_trait]
-impl Handler for BlobPipeline {
+impl ConcurrentHandler for BlobPipeline {
     async fn commit(values: &[Self::Value], conn: &mut db::Connection<'_>) -> Result<usize> {
         diesel::insert_into(blobs::table)
             .values(values)
@@ -148,6 +149,21 @@ impl Handler for BlobPipeline {
             .map_err(Into::into)
     }
 }
+
+
+
+// //Updated impl without conflict 
+// #[async_trait::async_trait]
+// impl Handler for BlobPipeline {
+//     async fn commit(values: &[Self::Value], conn: &mut db::Connection<'_>) -> Result<usize> {
+//         diesel::insert_into(blobs::table)
+//             .values(values)
+//             .on_conflict_do_nothing()
+//             .execute(conn)
+//             .await
+//             .map_err(Into::into)
+//     }
+// }
 
 // Helper function to check if an object is a Blob
 pub fn is_blob_object(obj: &Object) -> bool {
@@ -259,7 +275,7 @@ impl Processor for BlobIdPipeline {
 }
 
 #[async_trait::async_trait]
-impl Handler for BlobIdPipeline {
+impl ConcurrentHandler for BlobIdPipeline {
     async fn commit(values: &[Self::Value], conn: &mut db::Connection<'_>) -> Result<usize> {
         // Only insert the minimal IDs to the database
         diesel::insert_into(blob_ids::table)

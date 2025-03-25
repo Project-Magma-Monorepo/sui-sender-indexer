@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS blob_ids (
+    id BYTEA PRIMARY KEY
+); 

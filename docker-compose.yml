@@ -31,6 +31,10 @@ services:
       - REMOTE_STORE_URL=${REMOTE_STORE_URL}
       - RUST_LOG=info
       - START_CHECKPOINT=${START_CHECKPOINT}
+       # Add these new environment variables to reduce db frictions
+      - PIPELINE_BLOBS_BATCH_SIZE=10  # Reduce batch size for blobs pipeline
+      - PIPELINE_BLOBS_WORKERS=1      # Reduce number of workers for blobs pipeline
+      - PIPELINE_BLOBS_RETRY_DELAY_MS=1000  # Add delay between retries
     # No dependencies as we are running Supabase
     # depends_on:
     #   - postgres

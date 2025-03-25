@@ -1,6 +1,6 @@
 use clap::Parser;
 use sui_indexer_alt_framework::{
-    cluster::{self, IndexerCluster}, pipeline::concurrent::ConcurrentConfig, Result
+    cluster::{self, IndexerCluster}, pipeline::concurrent::ConcurrentConfig, Result, pipeline::sequential::SequentialConfig
 };
 use sui_sender_indexer::{BlobPipeline,SenderPipeline, BlobIdPipeline, MIGRATIONS};
 use url::Url;
@@ -38,6 +38,10 @@ async fn main() -> Result<()> {
     indexer
         .concurrent_pipeline(BlobPipeline, ConcurrentConfig::default())
         .await?;
+
+    // indexer
+    //     .sequential_pipeline(BlobPipeline, SequentialConfig::default())
+    //     .await?;
 
     // indexer
     //     .concurrent_pipeline(BlobIdPipeline, ConcurrentConfig::default())
