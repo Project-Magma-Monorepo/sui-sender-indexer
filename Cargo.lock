@@ -6742,6 +6742,7 @@ dependencies = [
  "diesel-async",
  "diesel_migrations",
  "hex",
+ "move-core-types",
  "serde",
  "serde_json",
  "sui-indexer-alt-framework",

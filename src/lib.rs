@@ -11,7 +11,11 @@ use sui_indexer_alt_framework::FieldCount;
 use sui_indexer_alt_framework::Result;
 use sui_types::base_types::ObjectID;
 use sui_types::object::Object;
+// Option 1: Use external_crates directly
+// use external_crates::move_core_types::u256::U256;
 
+// Import the U256 type from move-core-types
+use move_core_types::u256::U256;
 
 use serde::{Deserialize, Serialize};
 
@@ -27,6 +31,29 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 const BLOB_MODULE_ADDRESS: &str = "0x795ddbc26b8cfff2551f45e198b87fc19473f2df50f995376b924ac80e56f88b";
 // const BLOB_TYPE: &str =  "0x11f5d87dab9494ce459299c7874e959ff121649fd2d4529965f6dea85c153d2d::blob::Blob";
 
+// Define BlobData structure at the module level so it can be used by multiple functions
+#[derive(Deserialize, Debug)]
+pub struct BlobData {
+    id: ObjectID, // Every Move object has an ID field
+    registered_epoch: u32,
+    blob_id: U256,  // Fixed from U to U256
+    size: u64,
+    encoding_type: u8,
+    certified_epoch: Option<u32>,
+    storage: Storage,
+    deletable: bool,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Storage {
+    id: ObjectID,
+    start_epoch: u32,
+    end_epoch: u32,
+    storage_size: u64,
+}
+
+
+
 #[derive(Insertable, Debug, FieldCount)]
 #[diesel(table_name = senders)]
 pub struct StoredSender {
@@ -37,16 +64,16 @@ pub struct StoredSender {
 #[diesel(table_name = blobs)]
 pub struct StoredBlob {
     pub id: Vec<u8>,
-    pub blob_id: String,
     pub registered_epoch: i64,
     pub certified_epoch: Option<i64>,
     pub deletable: bool,
     pub encoding_type: i32,
     pub size: String,
+    pub blob_id: Vec<u8>,  // Add the blob_id field as Vec<u8> (BYTEA in PostgreSQL)
     pub storage_id: Vec<u8>,
     pub storage_start_epoch: i64,
     pub storage_end_epoch: i64,
-    pub storage_size: String,
+    pub storage_size: i64,
 }
 
 pub struct SenderPipeline;
@@ -105,7 +132,6 @@ impl Handler for BlobPipeline {
             .on_conflict(blobs::id)
             .do_update()
             .set((
-                blobs::blob_id.eq(diesel::dsl::sql("EXCLUDED.blob_id")),
                 blobs::registered_epoch.eq(diesel::dsl::sql("EXCLUDED.registered_epoch")),
                 blobs::certified_epoch.eq(diesel::dsl::sql("EXCLUDED.certified_epoch")),
                 blobs::deletable.eq(diesel::dsl::sql("EXCLUDED.deletable")),
@@ -115,6 +141,7 @@ impl Handler for BlobPipeline {
                 blobs::storage_start_epoch.eq(diesel::dsl::sql("EXCLUDED.storage_start_epoch")),
                 blobs::storage_end_epoch.eq(diesel::dsl::sql("EXCLUDED.storage_end_epoch")),
                 blobs::storage_size.eq(diesel::dsl::sql("EXCLUDED.storage_size")),
+                blobs::blob_id.eq(diesel::dsl::sql("EXCLUDED.blob_id")),
             ))
             .execute(conn)
             .await
@@ -125,12 +152,12 @@ impl Handler for BlobPipeline {
 // Helper function to check if an object is a Blob
 pub fn is_blob_object(obj: &Object) -> bool {
     if let Some(move_object_type) = obj.data.type_() {
-        // Sui blobs are in the storage module, with struct name Blob
+        // Sui blobs are in the blob module, with struct name Blob
         let is_blob = move_object_type.module().as_str() == "blob" && 
-                      move_object_type.name().as_str() == "Blob";
+                     move_object_type.name().as_str() == "Blob";
         
         if is_blob {
-            println!("Found Blob with ID: {}, {:?}", obj.id(), obj.data);
+            println!("Found Blob with ID: {}", obj.id());
             return true;
         }
         return false;
@@ -138,68 +165,50 @@ pub fn is_blob_object(obj: &Object) -> bool {
     false
 }
 
+
+
+// Helper function to convert U256 to bytes
+fn u256_to_bytes(value: &U256) -> Vec<u8> {
+    value.to_le_bytes().to_vec()
+}
+
+// Helper function to convert bytes back to U256
+fn bytes_to_u256(bytes: &[u8]) -> U256 {
+    let mut array = [0u8; 32]; // U256 is 32 bytes
+    let len = std::cmp::min(bytes.len(), 32);
+    array[0..len].copy_from_slice(&bytes[0..len]);
+    U256::from_le_bytes(&array)
+}
+
 // Helper function to extract Blob data from an object
 pub fn extract_blob_data(obj: &Object) -> Option<StoredBlob> {
-    println!("Checking if object is a Blob");
-
     if !is_blob_object(obj) {
         return None;
     }
 
     // Get the Move object
-    let move_obj = obj.data.try_as_move()?;
-    println!("Attempting to deserialize blob object with ID: {}", obj.id());
-    println!("Content length: {} bytes", move_obj.contents().len());
-    
-    // Define structs for BCS deserialization
-    #[derive(Deserialize)]
-    struct BlobData {
-        id: ObjectID, // Every Move object has an ID field
-        blob_id: String,
-        registered_epoch: u64,
-        certified_epoch: Option<u64>,
-        deletable: bool,
-        encoding_type: u64,
-        size: String,
-        storage: StorageData,
-    }
-
-    #[derive(Deserialize)]
-    struct StorageData {
-        id: StorageID,
-        start_epoch: u64,
-        end_epoch: u64,
-        storage_size: String,
-    }
-
-    #[derive(Deserialize)]
-    struct StorageID {
-        id: ObjectID,
-    }
-    
     // Try to deserialize with error handling
-    let result = bcs::from_bytes::<BlobData>(move_obj.contents());
-    
-    match result {
-        Ok(blob_data) => {
-            println!("Successfully deserialized blob with blob_id: {}", blob_data.blob_id);
+    match obj.to_rust::<BlobData>() {
+        Some(data) => {
+            println!("Successfully deserialized blob data on the whole object: {:?}", data) ;
             
+            // Map the BlobData to StoredBlob, ensuring all fields are properly translated
             Some(StoredBlob {
                 id: obj.id().to_vec(),
-                blob_id: blob_data.blob_id,
-                registered_epoch: blob_data.registered_epoch as i64,
-                certified_epoch: blob_data.certified_epoch.map(|e| e as i64),
-                deletable: blob_data.deletable,
-                encoding_type: blob_data.encoding_type as i32,
-                size: blob_data.size,
-                storage_id: blob_data.storage.id.id.to_vec(),
-                storage_start_epoch: blob_data.storage.start_epoch as i64,
-                storage_end_epoch: blob_data.storage.end_epoch as i64,
-                storage_size: blob_data.storage.storage_size,
+                registered_epoch: data.registered_epoch as i64,
+                certified_epoch: data.certified_epoch.map(|e| e as i64),
+                deletable: data.deletable,
+                encoding_type: data.encoding_type as i32,
+                size: data.size.to_string(), // Convert u64 to String
+                blob_id: u256_to_bytes(&data.blob_id), // Convert U256 to bytes
+                storage_id: data.storage.id.to_vec(),
+                storage_start_epoch: data.storage.start_epoch as i64,
+                storage_end_epoch: data.storage.end_epoch as i64,
+                storage_size: data.storage.storage_size as i64,
             })
         },
-        Err(e) => {
-            println!("Failed to deserialize blob: {}", e);
+        None => {
+            println!("Failed to transtypify to Rust: Object couldn't be deserialized to BlobData");
             None
         }
     }
@@ -225,11 +234,23 @@ impl Processor for BlobIdPipeline {
             .iter()
             .flat_map(|tx| tx.output_objects.iter())
             .filter(|obj| is_blob_object(obj))
-            .map(|obj| {
-                println!("Found blob with object ID: {}", obj.id());
-                StoredBlobId {
-                    id: obj.id().to_vec(),
+            .filter_map(|obj| {
+                // Get the Move object to extract the actual blob ID from the BlobData
+                let move_obj = obj.data.try_as_move()?;
+                    
+                // Try to deserialize to get the actual blob ID
+                if let Some(blob_data) = move_obj.to_rust::<BlobData>() {
+                    println!("Found blob with blob_id and successfully deserialized the whole object: {}", blob_data.blob_id);
+                    return Some(StoredBlobId {
+                        id: u256_to_bytes(&blob_data.blob_id), // Use the U256 conversion function
+                    });
                 }
+                
+                // Fallback to using object ID if deserialization fails
+                println!("Using object ID for blob: {}", obj.id());
+                Some(StoredBlobId {
+                    id: obj.id().to_vec(),
+                })
             })
             .collect();
         

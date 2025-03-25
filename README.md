@@ -9,6 +9,14 @@ This indexer is designed to index blob objects from the Sui blockchain and store
 - Provides a simple API to query blob data
 - Efficient storage of blob IDs for quick lookups and reduced storage requirements
 
+## Recent Updates
+
+The indexer has been updated to use a streamlined database schema:
+
+- The `blobs` table now has a simpler structure that aligns with the Sui BlobData model
+- Removed redundant fields and added appropriate indexes for better performance
+- The `blob_ids` table provides a lightweight alternative for applications that only need object IDs
+
 ## Prerequisites
 
 - Rust toolchain
@@ -22,10 +30,29 @@ This indexer is designed to index blob objects from the Sui blockchain and store
    ```bash
    docker-compose up -d db
    ```
-3. Build the indexer:
+3. Run migrations:
+   ```bash
+   diesel migration run
+   ```
+4. Build the indexer:
    ```bash
    cargo build
    ```
+
+## Database Schema
+
+### Blobs Table
+The `blobs` table stores detailed information about blobs:
+- `id`: The object ID (primary key)
+- `registered_epoch`: When the blob was registered
+- `certified_epoch`: When the blob was certified (optional)
+- `deletable`: Whether the blob can be deleted
+- `encoding_type`: The encoding format
+- `size`: The size of the blob in bytes
+- `storage_id`: The ID of the storage object
+
+### BlobIds Table
+The `blob_ids` table contains only the essential blob ID for lightweight lookups.
 
 ## Testing the Blob Indexer
 
@@ -94,7 +121,7 @@ You can configure which pipelines are active by modifying the main.rs file.
 
 The indexer can be configured using environment variables:
 
-- `DATABASE_URL`: PostgreSQL connection string (default: postgres://supabase_admin:sui-indexer@localhost:5432/sui_sender)
+- `DATABASE_URL`: PostgreSQL connection string (default: postgres://postgres:sui-indexer@localhost:5432/sui_sender)
 - `REMOTE_STORE_URL`: URL of the checkpoint store (default: https://checkpoints.testnet.sui.io)
 - `START_CHECKPOINT`: Checkpoint number to start indexing from (default: latest)
 

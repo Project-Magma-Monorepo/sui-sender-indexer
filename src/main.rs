@@ -35,13 +35,13 @@ async fn main() -> Result<()> {
     //     .concurrent_pipeline(SenderPipeline, ConcurrentConfig::default())
     //     .await?;
 
-    // indexer
-    //     .concurrent_pipeline(BlobPipeline, ConcurrentConfig::default())
-    //     .await?;
-
     indexer
-        .concurrent_pipeline(BlobIdPipeline, ConcurrentConfig::default())
+        .concurrent_pipeline(BlobPipeline, ConcurrentConfig::default())
         .await?;
+
+    // indexer
+    //     .concurrent_pipeline(BlobIdPipeline, ConcurrentConfig::default())
+    //     .await?;
 
     println!("Starting indexer...");
     let _ = indexer.run().await?.await;

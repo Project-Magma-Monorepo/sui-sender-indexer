@@ -7,16 +7,16 @@ diesel::table! {
 diesel::table! {
     blobs (id) {
         id -> Bytea,
-        blob_id -> Varchar,
         registered_epoch -> Int8,
         certified_epoch -> Nullable<Int8>,
         deletable -> Bool,
         encoding_type -> Int4,
         size -> Varchar,
+        blob_id -> Bytea,
         storage_id -> Bytea,
         storage_start_epoch -> Int8,
         storage_end_epoch -> Int8,
-        storage_size -> VarChar,
+        storage_size -> Int8,
     }
 }
 
