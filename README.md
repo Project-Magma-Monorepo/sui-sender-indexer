@@ -1,5 +1,7 @@
 # Sui Sender Index
 
+[![Check latest dependencies](https://github.com/amnn/sui-sender-indexer/actions/workflows/deps.yml/badge.svg)](https://github.com/amnn/sui-sender-indexer/actions/workflows/deps.yml)
+
 A demo using `sui-indexer-alt-framework` to index all active addresses since
 genesis from the chain. To set things up, run:
 
