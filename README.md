@@ -1,3 +1,4 @@
+
 # Sui Sender Indexer
 
 This indexer is designed to index blob objects from the Sui blockchain and store them in a database.
@@ -64,6 +65,21 @@ cargo run --bin simple_blob_check
 
 # Test a specific checkpoint
 cargo run --bin simple_blob_check -- --checkpoint_number 12345
+
+# Sui Sender Index
+
+[![Check latest dependencies](https://github.com/amnn/sui-sender-indexer/actions/workflows/deps.yml/badge.svg)](https://github.com/amnn/sui-sender-indexer/actions/workflows/deps.yml)
+
+A demo using `sui-indexer-alt-framework` to index all active addresses since
+genesis from the chain. To set things up, run:
+
+```sh
+$ diesel setup                                                                \
+    --database-url="postgres://postgres:postgrespw@localhost:5432/sui_sender" \
+    --migration-dir migrations
+$ diesel migration run                                                        \
+    --database-url="postgres://postgres:postgrespw@localhost:5432/sui_sender" \
+    --migration-dir migrations
 ```
 
 This test will:
