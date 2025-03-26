@@ -17,6 +17,7 @@ serde = { version = "1.0", features = ["derive"] }
 bcs = "0.1.6"
 
 
+
 sui-indexer-alt-framework = { git = "https://github.com/MystenLabs/sui.git", rev = "76ea0f37cde3ff6656edb933edde02a53bd00999" }
 sui-types = { git = "https://github.com/MystenLabs/sui.git", rev = "76ea0f37cde3ff6656edb933edde02a53bd00999" }
 move-core-types = { git = "https://github.com/MystenLabs/sui.git", rev = "76ea0f37cde3ff6656edb933edde02a53bd00999" }
