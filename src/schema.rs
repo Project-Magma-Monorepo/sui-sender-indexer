@@ -1,23 +1,27 @@
-// @generated automatically by Diesel CLI.
-
 diesel::table! {
-    senders (sender) {
-        sender -> Bytea,
+    blob_ids (id) {
+        id -> Bytea,
     }
 }
 
 diesel::table! {
-    blob_objects (id) {
+    blobs (id) {
         id -> Bytea,
-        blob_id -> Text,
         registered_epoch -> Int8,
         certified_epoch -> Nullable<Int8>,
         deletable -> Bool,
         encoding_type -> Int4,
-        size -> Text,
+        size -> Varchar,
+        blob_id -> Bytea,
         storage_id -> Bytea,
         storage_start_epoch -> Int8,
         storage_end_epoch -> Int8,
-        storage_size -> Text,
+        storage_size -> Int8,
+    }
+}
+
+diesel::table! {
+    senders (sender) {
+        sender -> Bytea,
     }
 }

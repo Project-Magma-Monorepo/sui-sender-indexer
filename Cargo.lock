@@ -6772,11 +6772,17 @@ name = "sui-sender-indexer"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bcs",
  "clap",
  "diesel",
  "diesel-async",
  "diesel_migrations",
+ "hex",
+ "move-core-types",
+ "serde",
+ "serde_json",
  "sui-indexer-alt-framework",
+ "sui-types",
  "tokio",
  "url",
 ]
