@@ -1,0 +1,18 @@
+name: Check latest dependencies
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * WED' # Every Wednesday at 8:00 UTC
+
+jobs:
+  latest_deps:
+    name: Build against latest dependencies
+    runs-on: ubuntu-latest
+    env:
+      CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: allow
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup update stable && rustup default stable
+      - run: cargo update --verbose
+      - run: cargo build --verbose
