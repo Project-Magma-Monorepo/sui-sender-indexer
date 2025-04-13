@@ -25,3 +25,40 @@ diesel::table! {
         sender -> Bytea,
     }
 }
+
+diesel::table! {
+    kiosk_owner_caps (id) {
+        id -> Bytea,
+        for_kiosk -> Bytea,
+        current_owner -> Bytea,
+    }
+}
+
+diesel::table! {
+    kiosks (id) {
+        id -> Bytea,
+        profits -> Int8,
+        owner -> Bytea,
+        item_count -> Int4,
+        allow_extensions -> Bool,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    nfts (id) {
+        id -> Bytea,
+        kiosk_id -> Nullable<Bytea>,
+    }
+}
+
+diesel::joinable!(nfts -> kiosks (kiosk_id));
+
+diesel::allow_tables_to_appear_in_same_query!(
+    blob_ids,
+    blobs,
+    senders,
+    kiosk_owner_caps,
+    kiosks,
+    nfts,
+);

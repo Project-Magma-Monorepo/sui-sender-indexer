@@ -1,8 +1,11 @@
 use clap::Parser;
 use sui_indexer_alt_framework::{
-    cluster::{self, IndexerCluster}, pipeline::concurrent::ConcurrentConfig, Result, pipeline::sequential::SequentialConfig
+    cluster::{self, IndexerCluster}, pipeline::concurrent::ConcurrentConfig, Result, pipeline::sequential::SequentialConfig, 
+
+    ingestion::{client::IngestionClient, ClientArgs, IngestionConfig}
 };
-use sui_sender_indexer::{BlobPipeline,SenderPipeline, BlobIdPipeline, MIGRATIONS};
+
+use sui_sender_indexer::{BlobPipeline,SenderPipeline, BlobIdPipeline, MIGRATIONS, KioskPipeline};
 use url::Url;
 
 
@@ -30,18 +33,14 @@ async fn main() -> Result<()> {
     let mut indexer =
         IndexerCluster::new(args.database_url, args.cluster_args, Some(&MIGRATIONS)).await?;
 
-    // Comment out SenderPipeline to only index blobs
+    
     // indexer
-    //     .concurrent_pipeline(SenderPipeline, ConcurrentConfig::default())
+    //     .concurrent_pipeline(BlobPipeline, ConcurrentConfig::default())
     //     .await?;
 
     indexer
-        .concurrent_pipeline(BlobPipeline, ConcurrentConfig::default())
+        .sequential_pipeline(KioskPipeline, SequentialConfig::default())
         .await?;
-
-    // indexer
-    //     .sequential_pipeline(BlobPipeline, SequentialConfig::default())
-    //     .await?;
 
     // indexer
     //     .concurrent_pipeline(BlobIdPipeline, ConcurrentConfig::default())
